@@ -102,12 +102,10 @@ public class TetrahedronModule : MonoBehaviour {
 		if (newSolves == 0) return;
 		if (stageActive) {
 			for (int i = 0; i < newSolves; i++) {
-				Debug.Log("Other module is solved before input. Strike!");
+				Debug.LogFormat("[Tetrahedron #{0}] Other module is solved before input. Strike!", moduleId);
 				Module.HandleStrike();
 			}
-		}
-		Debug.Log("Other module is solved. Activating tetrahedron...");
-		ActivateStage();
+		} else ActivateStage();
 		registeredSolvesCount = solvedUnignoredModulesCount;
 	}
 

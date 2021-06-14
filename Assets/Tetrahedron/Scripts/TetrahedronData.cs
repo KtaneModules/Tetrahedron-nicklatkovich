@@ -38,7 +38,7 @@ public static class TetrahedronData {
 			HashSet<string> prevVd = new HashSet<string>(vd);
 			vd = new HashSet<string>(va.Select(s => s + 'd'));
 			while (vd.Count > stagesCount) vd.Remove(vd.PickRandom());
-			Debug.Log(vd.Join(","));
+			// Debug.Log(vd.Join(","));
 			if (zd >= stagesCount) return vd;
 			va = vd.Count == 0 && va.Count == 0 ? new HashSet<string>(new[] { "a", "b", "c" }) : new HashSet<string>(va.SelectMany(s => (
 				new[] { s + 'a', s + 'b', s + 'c' }
