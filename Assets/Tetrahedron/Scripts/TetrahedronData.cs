@@ -26,23 +26,23 @@ public static class TetrahedronData {
 		{ Color.white, "white" },
 	};
 
-	public static HashSet<string> Generate(int stagesCount) {
-		int zd = 1;
+	public static HashSet<string> Generate(int stagesCount, out int combinationsCount) {
+		combinationsCount = 1;
 		int za = 0;
 		HashSet<string> vd = new HashSet<string>();
 		HashSet<string> va = new HashSet<string>();
 		do {
 			int newZd = za * 3;
-			za = za * 2 + zd;
-			zd = newZd;
+			za = za * 2 + combinationsCount;
+			combinationsCount = newZd;
 			HashSet<string> prevVd = new HashSet<string>(vd);
 			vd = new HashSet<string>(va.Select(s => s + 'd'));
 			while (vd.Count > stagesCount) vd.Remove(vd.PickRandom());
 			// Debug.Log(vd.Join(","));
-			if (zd >= stagesCount) return vd;
+			if (combinationsCount >= stagesCount) return vd;
 			va = vd.Count == 0 && va.Count == 0 ? new HashSet<string>(new[] { "a", "b", "c" }) : new HashSet<string>(va.SelectMany(s => (
 				new[] { s + 'a', s + 'b', s + 'c' }
-			).Where(s1 => s1.Last() != s1[s1.Length - 2]).Concat(prevVd.SelectMany(s2 => new[] { s2 + 'a', s2 + 'b', s2 + 'd' }))));
+			).Where(s1 => s1.Last() != s1[s1.Length - 2]).Concat(prevVd.SelectMany(s2 => new[] { s2 + 'a', s2 + 'b', s2 + 'c' }))));
 			while (va.Count > stagesCount) va.Remove(va.PickRandom());
 		} while (true);
 	}

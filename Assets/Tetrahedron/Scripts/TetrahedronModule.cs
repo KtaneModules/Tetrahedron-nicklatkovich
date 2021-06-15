@@ -85,9 +85,12 @@ public class TetrahedronModule : MonoBehaviour {
 		int unignoredModulesCount = allModules.Where(m => !ignoredModules.Contains(m)).Count();
 		int tetrahedronModulesCount = allModules.Count(s => s == "Tetrahedron");
 		stagesCount = unignoredModulesCount + 1;
+		Debug.LogFormat("[Tetrahedron #{0}] Stages count: {1}", moduleId, stagesCount);
 		int expectedPathesCount = stagesCount * tetrahedronModulesCount;
-		pathesExamples = TetrahedronData.Generate(expectedPathesCount);
+		int combinationsCount;
+		pathesExamples = TetrahedronData.Generate(expectedPathesCount, out combinationsCount);
 		pathLength = pathesExamples.PickRandom().Length;
+		Debug.LogFormat("[Tetrahedron #{0}] Path length: {1} ({2} combinations!)", moduleId, pathLength, combinationsCount);
 		for (int i = 0; i < baseNodes.Length; i++) {
 			int i_ = i;
 			baseNodes[i].Selectable.OnInteract += () => { PressNode((char)('a' + i_)); return false; };
@@ -104,6 +107,9 @@ public class TetrahedronModule : MonoBehaviour {
 			for (int i = 0; i < newSolves; i++) {
 				Debug.LogFormat("[Tetrahedron #{0}] Other module is solved before input. Strike!", moduleId);
 				Module.HandleStrike();
+				if (playActivationSound && otherTetrahedrons.Any(t => t.passedStagesCount == solvedUnignoredModulesCount)) {
+					Audio.PlaySoundAtTransform("TetrahedronActivated", transform);
+				}
 			}
 		} else ActivateStage();
 		registeredSolvesCount = solvedUnignoredModulesCount;
@@ -116,6 +122,7 @@ public class TetrahedronModule : MonoBehaviour {
 			t.currentStagePathExample
 		))));
 		string possiblePath = pathesExamples.Where(p => !allUsedPathes.Contains(p)).PickRandom();
+		Debug.Log(possiblePath);
 		HashSet<EdgeComponent> usedEdges = new HashSet<EdgeComponent>(PathToEdges(possiblePath));
 		HashSet<Color> passableColors = new HashSet<Color>();
 		HashSet<Color> impassableColors = new HashSet<Color>();
@@ -130,9 +137,9 @@ public class TetrahedronModule : MonoBehaviour {
 		Debug.LogFormat("[Tetrahedron #{0}] Stage #{1}:", moduleId, passedStagesCount + 1);
 		foreach (EdgeComponent edge in baseEdges.Concat(startEdges)) {
 			edge.color = usedEdges.Contains(edge) ? passableColors.PickRandom() : impassableColors.PickRandom();
-			Debug.LogFormat("[Tetrahedron #{0}] Edges \"{1}\" is {2}", moduleId, edge.Id, TetrahedronData.colorNames[edge.color.Value]);
+			Debug.LogFormat("[Tetrahedron #{0}] Edge \"{1}\" is {2}", moduleId, edge.Id.ToUpper(), TetrahedronData.colorNames[edge.color.Value]);
 		}
-		Debug.LogFormat("[Tetrahedron #{0}] Possible path: {1}", moduleId, possiblePath);
+		Debug.LogFormat("[Tetrahedron #{0}] Possible path: {1}", moduleId, possiblePath.ToUpper());
 		stageActive = true;
 		startNode.currentPosition = true;
 		currentPath = "";
@@ -147,18 +154,18 @@ public class TetrahedronModule : MonoBehaviour {
 		currentPath += nodeId;
 		EdgeComponent edge = MoveToEdge(currentNodeId, nodeId);
 		if (!TetrahedronData.IsPassable(edge.color.Value, BombInfo, startingTimeInMinutes)) {
-			Debug.LogFormat("[Tetrahedron #{0}] Trying to use edge \"{1}\" that is {2}. Strike!", moduleId, edge.Id, TetrahedronData.colorNames[edge.color.Value]);
+			Debug.LogFormat("[Tetrahedron #{0}] Trying to use edge \"{1}\" that is {2}. Strike!", moduleId, edge.Id.ToUpper(), TetrahedronData.colorNames[edge.color.Value]);
 			Module.HandleStrike();
 			currentPath = "";
 			startNode.currentPosition = true;
 		} else if (currentPath.Length == pathLength) {
-			Debug.LogFormat("[Tetrahedron #{0}] Submitted path: {1}", moduleId, currentPath);
+			Debug.LogFormat("[Tetrahedron #{0}] Submitted path: {1}", moduleId, currentPath.ToUpper());
 			bool pathIsValid = true;
 			if (usedPathes.Contains(currentPath)) {
 				Debug.LogFormat("[Tetrahedron #{0}] Submitted path was used before. Strike!", moduleId);
 				pathIsValid = false;
 			} else if (currentPath.Last() != 'd') {
-				Debug.LogFormat("[Tetrahedron #{0}] Submitted path not ends at \"d\" node. Strike!", moduleId);
+				Debug.LogFormat("[Tetrahedron #{0}] Submitted path not ends at \"D\" node. Strike!", moduleId);
 				pathIsValid = false;
 			} else if (otherTetrahedrons.Any(t => t.usedPathes.Contains(currentPath))) {
 				Debug.LogFormat("[Tetrahedron #{0}] Submitted path was already used in other Tetrahedron. Strike!", moduleId);
