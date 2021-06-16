@@ -1,10 +1,16 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 public class TetrahedronModule : MonoBehaviour {
 	private const float EDGE_LENGTH = 0.0643f;
+	private const int START_PER_ACTION_REWARD = 20;
+	private const int PER_ACTION_REWARD_BOOST = 2;
+	private const int OTHER_VALID_TETRAHEDRON_MULTIPLIER = 50;
+
 	private static readonly Vector3[] BASE_NODES_POSITIONS = new Vector3[] {
 		new Vector3(0, 0.0275f, 0.06f),
 		new Vector3(-0.0693f, 0.0275f, -0.06f),
@@ -13,6 +19,9 @@ public class TetrahedronModule : MonoBehaviour {
 
 	private static int moduleIdCounter = 1;
 
+	public readonly string TwitchHelpMessage = "\"!{0} ABCD\" - Submit path";
+
+	public bool TwitchPlaysActive;
 	public TextMesh Display;
 	public KMSelectable Selectable;
 	public KMBombModule Module;
@@ -30,6 +39,7 @@ public class TetrahedronModule : MonoBehaviour {
 	private int stagesCount;
 	private int pathLength;
 	private int registeredSolvesCount = 0;
+	private int score = 0;
 	private string currentStagePathExample = null;
 	private string currentPath;
 	private HashSet<string> pathesExamples;
@@ -122,7 +132,8 @@ public class TetrahedronModule : MonoBehaviour {
 			t.currentStagePathExample
 		))));
 		string possiblePath = pathesExamples.Where(p => !allUsedPathes.Contains(p)).PickRandom();
-		Debug.Log(possiblePath);
+		currentStagePathExample = possiblePath;
+		// Debug.Log(possiblePath);
 		HashSet<EdgeComponent> usedEdges = new HashSet<EdgeComponent>(PathToEdges(possiblePath));
 		HashSet<Color> passableColors = new HashSet<Color>();
 		HashSet<Color> impassableColors = new HashSet<Color>();
@@ -167,13 +178,14 @@ public class TetrahedronModule : MonoBehaviour {
 			} else if (currentPath.Last() != 'd') {
 				Debug.LogFormat("[Tetrahedron #{0}] Submitted path not ends at \"D\" node. Strike!", moduleId);
 				pathIsValid = false;
-			} else if (otherTetrahedrons.Any(t => t.usedPathes.Contains(currentPath))) {
+			} else if (!TwitchPlaysActive && otherTetrahedrons.Any(t => t.usedPathes.Contains(currentPath))) {
 				Debug.LogFormat("[Tetrahedron #{0}] Submitted path was already used in other Tetrahedron. Strike!", moduleId);
 				pathIsValid = false;
 			}
 			if (pathIsValid) {
 				Debug.LogFormat("[Tetrahedron #{0}] Submitted path is correct", moduleId);
 				usedPathes.Add(currentPath);
+				currentPath = "";
 				passedStagesCount++;
 				if (passedStagesCount == stagesCount) {
 					Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, transform);
@@ -194,6 +206,61 @@ public class TetrahedronModule : MonoBehaviour {
 			Audio.PlaySoundAtTransform("TetrahedronNodePressed", pressedNode.transform);
 		}
 		UpdateDisplay();
+	}
+
+	public IEnumerator ProcessTwitchCommand(string command) {
+		command = command.Trim().ToLower();
+		if (!Regex.IsMatch(command, "^[a-d]{2,}$")) yield break;
+		for (int i = 1; i < command.Length; i++) {
+			if (command[i] == command[i - 1]) {
+				yield return "sendtochat {0}, !{1} duplicates found";
+				yield break;
+			}
+		}
+		if (command[0] == 'd') {
+			yield return "sendtochat {0}, !{1} first move is invalid";
+			yield break;
+		}
+		yield return null;
+		if (command.Length != pathLength) {
+			yield return "sendtochat {0}, !{1} requires path with length " + pathLength.ToString();
+			yield break;
+		}
+		if (!stageActive) {
+			yield return "sendtochat {0}, !{1} Tetrahedron not active";
+			yield break;
+		}
+		int prevStages = passedStagesCount;
+		foreach (char c in command) {
+			PressNode(c);
+			if (currentPath.Length == 0) break;
+			yield return new WaitForSeconds(.1f);
+		}
+		if (prevStages == passedStagesCount) yield break;
+		int addScores = (START_PER_ACTION_REWARD + prevStages * PER_ACTION_REWARD_BOOST) * (pathLength - 1);
+		Debug.LogFormat("[Tetrahedron #{0}] Reward points: {1}.{2}", moduleId, addScores / 100, addScores % 100);
+		score += addScores;
+		if (passedStagesCount == stagesCount && otherTetrahedrons.Count > 0) {
+			KeyValuePair<string, TetrahedronModule>[] otherUsages = usedPathes.SelectMany(p => otherTetrahedrons.Select(t => (
+				new KeyValuePair<string, TetrahedronModule>(p, t)
+			))).Where(pair => pair.Value.usedPathes.Contains(pair.Key)).ToArray();
+			if (otherUsages.Length == 0) {
+				int addPoints = OTHER_VALID_TETRAHEDRON_MULTIPLIER * stagesCount * otherTetrahedrons.Count;
+				Debug.LogFormat("[Tetrahedron #{0}] No conflicts with another {1} Tetrahedrons. Reward points: {2}.{3}", moduleId, otherTetrahedrons.Count, addPoints / 100,
+					addPoints % 100);
+				score += addPoints;
+			} else {
+				KeyValuePair<string, TetrahedronModule> pair = otherUsages.PickRandom();
+				Debug.LogFormat("[Tetrahedron #{0}] Path \"{1}\" was used at Tetrahedron #{2}. No additional reward points", moduleId, pair.Key.ToUpper(),
+					pair.Value.moduleId);
+			}
+		}
+		int newScores = score / 100;
+		if (newScores == 0) yield break;
+		string award = "awardpoints " + newScores.ToString();
+		Debug.LogFormat("[Tetrahedron #{0}] Run twitch {1}", moduleId, award);
+		score %= 100;
+		yield return award;
 	}
 
 	private NodeComponent InstantiateNode(Vector3 localPosition) {
@@ -222,11 +289,11 @@ public class TetrahedronModule : MonoBehaviour {
 	}
 
 	private EdgeComponent MoveToEdge(char from, char to) {
-			if (from == 'd') return startEdges[to - 'a'];
-			if (to == 'd') return startEdges[from - 'a'];
-			char[] sorted = new[] { from, to };
-			Array.Sort(sorted);
-			if (sorted[0] == 'a') return sorted[1] == 'b' ? baseEdges[0] : baseEdges[2];
-			return baseEdges[1];
+		if (from == 'd') return startEdges[to - 'a'];
+		if (to == 'd') return startEdges[from - 'a'];
+		char[] sorted = new[] { from, to };
+		Array.Sort(sorted);
+		if (sorted[0] == 'a') return sorted[1] == 'b' ? baseEdges[0] : baseEdges[2];
+		return baseEdges[1];
 	}
 }
