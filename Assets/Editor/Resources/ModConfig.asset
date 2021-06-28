@@ -16,6 +16,6 @@ MonoBehaviour:
   author: NickLatkovich
   description: Full Boss! Submit a unique path at each stage, avoiding impassable
     edges.
-  version: 0.1.1
+  version: 1.0.1
   outputFolder: build
   previewImage: {fileID: 2800000, guid: df4bea95e93adb04b9f14ef016e50cab, type: 3}

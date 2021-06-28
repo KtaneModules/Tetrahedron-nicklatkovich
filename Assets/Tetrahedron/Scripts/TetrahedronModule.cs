@@ -125,9 +125,9 @@ public class TetrahedronModule : MonoBehaviour {
 		registeredSolvesCount = solvedUnignoredModulesCount;
 	}
 
-	private void ActivateStage() {
+	private void ActivateStage(bool reset = false) {
 		if (stageActive) return;
-		if (playActivationSound) Audio.PlaySoundAtTransform("TetrahedronActivated", startNode.transform);
+		if (playActivationSound && !reset) Audio.PlaySoundAtTransform("TetrahedronActivated", startNode.transform);
 		HashSet<string> allUsedPathes = new HashSet<string>(usedPathes.Concat(otherTetrahedrons.SelectMany(t => t.usedPathes)).Concat(otherTetrahedrons.Select(t => (
 			t.currentStagePathExample
 		))));
@@ -141,7 +141,7 @@ public class TetrahedronModule : MonoBehaviour {
 			if (TetrahedronData.IsPassable(color, BombInfo, startingTimeInMinutes)) passableColors.Add(color);
 			else impassableColors.Add(color);
 		}
-		if (passedStagesCount == 0) {
+		if (passedStagesCount == 0 && !reset) {
 			Debug.LogFormat("[Tetrahedron #{0}] Passable colors: {1}", moduleId, passableColors.Select(c => TetrahedronData.colorNames[c]).Join(","));
 			Debug.LogFormat("[Tetrahedron #{0}] Impassable colors: {1}", moduleId, impassableColors.Select(c => TetrahedronData.colorNames[c]).Join(","));
 		}
@@ -172,6 +172,7 @@ public class TetrahedronModule : MonoBehaviour {
 		} else if (currentPath.Length == pathLength) {
 			Debug.LogFormat("[Tetrahedron #{0}] Submitted path: {1}", moduleId, currentPath.ToUpper());
 			bool pathIsValid = true;
+			bool shouldReset = false;
 			if (usedPathes.Contains(currentPath)) {
 				Debug.LogFormat("[Tetrahedron #{0}] Submitted path was used before. Strike!", moduleId);
 				pathIsValid = false;
@@ -179,8 +180,9 @@ public class TetrahedronModule : MonoBehaviour {
 				Debug.LogFormat("[Tetrahedron #{0}] Submitted path not ends at \"D\" node. Strike!", moduleId);
 				pathIsValid = false;
 			} else if (!TwitchPlaysActive && otherTetrahedrons.Any(t => t.usedPathes.Contains(currentPath))) {
-				Debug.LogFormat("[Tetrahedron #{0}] Submitted path was already used in other Tetrahedron. Strike!", moduleId);
+				Debug.LogFormat("[Tetrahedron #{0}] Submitted path was already used in other Tetrahedron. Strike and reset!", moduleId);
 				pathIsValid = false;
+				shouldReset = true;
 			}
 			if (pathIsValid) {
 				Debug.LogFormat("[Tetrahedron #{0}] Submitted path is correct", moduleId);
@@ -197,8 +199,13 @@ public class TetrahedronModule : MonoBehaviour {
 				if (registeredSolvesCount >= passedStagesCount) ActivateStage();
 			} else {
 				Module.HandleStrike();
-				currentPath = "";
-				startNode.currentPosition = true;
+				if (shouldReset) {
+					stageActive = false;
+					ActivateStage(true);
+				} else {
+					currentPath = "";
+					startNode.currentPosition = true;
+				}
 			}
 		} else {
 			NodeComponent pressedNode = GetNodeById(nodeId);
