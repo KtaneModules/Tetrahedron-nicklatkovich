@@ -8,7 +8,7 @@ using UnityEngine;
 public class TetrahedronModule : MonoBehaviour {
 	private const float EDGE_LENGTH = 0.0643f;
 	private const int START_PER_ACTION_REWARD = 20;
-	private const int PER_ACTION_REWARD_BOOST = 2;
+	private const int PER_ACTION_REWARD_BOOST = 1;
 	private const int OTHER_VALID_TETRAHEDRON_MULTIPLIER = 50;
 
 	private static readonly Vector3[] BASE_NODES_POSITIONS = new Vector3[] {
@@ -245,7 +245,7 @@ public class TetrahedronModule : MonoBehaviour {
 		}
 		if (prevStages == passedStagesCount) yield break;
 		int addScores = (START_PER_ACTION_REWARD + prevStages * PER_ACTION_REWARD_BOOST) * (pathLength - 1);
-		Debug.LogFormat("[Tetrahedron #{0}] Reward points: {1}.{2}", moduleId, addScores / 100, addScores % 100);
+		Debug.LogFormat("[Tetrahedron #{0}] Reward points: {1}.{2}", moduleId, addScores / 100, (addScores % 100).ToString().PadLeft(2, '0'));
 		score += addScores;
 		if (passedStagesCount == stagesCount && otherTetrahedrons.Count > 0) {
 			KeyValuePair<string, TetrahedronModule>[] otherUsages = usedPathes.SelectMany(p => otherTetrahedrons.Select(t => (
@@ -254,7 +254,7 @@ public class TetrahedronModule : MonoBehaviour {
 			if (otherUsages.Length == 0) {
 				int addPoints = OTHER_VALID_TETRAHEDRON_MULTIPLIER * stagesCount * otherTetrahedrons.Count;
 				Debug.LogFormat("[Tetrahedron #{0}] No conflicts with another {1} Tetrahedrons. Reward points: {2}.{3}", moduleId, otherTetrahedrons.Count, addPoints / 100,
-					addPoints % 100);
+					(addPoints % 100).ToString().PadLeft(2, '0'));
 				score += addPoints;
 			} else {
 				KeyValuePair<string, TetrahedronModule> pair = otherUsages.PickRandom();
