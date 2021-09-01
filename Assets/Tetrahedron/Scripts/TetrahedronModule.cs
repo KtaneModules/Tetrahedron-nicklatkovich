@@ -7,8 +7,8 @@ using UnityEngine;
 
 public class TetrahedronModule : MonoBehaviour {
 	private const float EDGE_LENGTH = 0.0643f;
-	private const int START_PER_ACTION_REWARD = 20;
-	private const int PER_ACTION_REWARD_BOOST = 1;
+	private const int PER_STAGE_INITIAL_REWARD = 20;
+	private const int PER_STAGE_REWARD_MULTIPLIER = 4;
 	private const int OTHER_VALID_TETRAHEDRON_MULTIPLIER = 50;
 
 	private static readonly Vector3[] BASE_NODES_POSITIONS = new Vector3[] {
@@ -244,7 +244,7 @@ public class TetrahedronModule : MonoBehaviour {
 			yield return new WaitForSeconds(.1f);
 		}
 		if (prevStages == passedStagesCount) yield break;
-		int addScores = (START_PER_ACTION_REWARD + prevStages * PER_ACTION_REWARD_BOOST) * (pathLength - 1);
+		int addScores = PER_STAGE_INITIAL_REWARD + prevStages * PER_STAGE_REWARD_MULTIPLIER;
 		Debug.LogFormat("[Tetrahedron #{0}] Reward points: {1}.{2}", moduleId, addScores / 100, (addScores % 100).ToString().PadLeft(2, '0'));
 		score += addScores;
 		if (passedStagesCount == stagesCount && otherTetrahedrons.Count > 0) {
