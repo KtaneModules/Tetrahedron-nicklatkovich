@@ -31,6 +31,8 @@ public class TetrahedronModule : MonoBehaviour {
 	public NodeComponent NodePrefab;
 	public EdgeComponent EdgePrefab;
 
+	private bool forceSolved = false;
+	private bool activated = false;
 	private bool stageActive;
 	private bool playActivationSound;
 	private int moduleId;
@@ -83,6 +85,7 @@ public class TetrahedronModule : MonoBehaviour {
 	}
 
 	private void ActivateModule() {
+		activated = true;
 		startingTimeInMinutes = Mathf.FloorToInt(BombInfo.GetTime() / 60f);
 		Debug.LogFormat("[Tetrahedron #{0}] Starting time in minutes: {1}", moduleId, startingTimeInMinutes);
 		int modulesCount = transform.parent.childCount;
@@ -110,13 +113,16 @@ public class TetrahedronModule : MonoBehaviour {
 	}
 
 	private void Update() {
+		if (!activated) return;
 		int solvedUnignoredModulesCount = BombInfo.GetSolvedModuleNames().Where(s => !ignoredModules.Contains(s)).Count();
 		int newSolves = solvedUnignoredModulesCount - registeredSolvesCount;
 		if (newSolves == 0) return;
 		if (stageActive) {
 			for (int i = 0; i < newSolves; i++) {
-				Debug.LogFormat("[Tetrahedron #{0}] Other module is solved before input. Strike!", moduleId);
-				Module.HandleStrike();
+				if (!forceSolved) {
+					Debug.LogFormat("[Tetrahedron #{0}] Other module is solved before input. Strike!", moduleId);
+					Module.HandleStrike();
+				}
 				if (playActivationSound && otherTetrahedrons.Any(t => t.passedStagesCount == solvedUnignoredModulesCount)) {
 					Audio.PlaySoundAtTransform("TetrahedronActivated", transform);
 				}
@@ -268,6 +274,26 @@ public class TetrahedronModule : MonoBehaviour {
 		Debug.LogFormat("[Tetrahedron #{0}] Run twitch {1}", moduleId, award);
 		score %= 100;
 		yield return award;
+	}
+
+	private IEnumerator TwitchHandleForcedSolve() {
+		forceSolved = true;
+		Debug.LogFormat("[Tetrahedron #{0}] Autosolver started", moduleId);
+		yield return new WaitForSeconds(.1f);
+		while (!activated) yield return new WaitForSeconds(.1f);
+		while (passedStagesCount != stagesCount) {
+			while (!stageActive) yield return new WaitForSeconds(.1f);
+			char currentNodeId = currentPath.Length == 0 ? 'd' : currentPath.Last();
+			if (currentNodeId != 'd') {
+				GetNodeById(currentNodeId).currentPosition = false;
+				startNode.currentPosition = true;
+			}
+			currentPath = "";
+			foreach (char c in currentStagePathExample) {
+				PressNode(c);
+				yield return new WaitForSeconds(.1f);
+			}
+		}
 	}
 
 	private NodeComponent InstantiateNode(Vector3 localPosition) {
